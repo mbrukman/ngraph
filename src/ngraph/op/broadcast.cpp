@@ -27,7 +27,12 @@ op::Broadcast::Broadcast(const shared_ptr<Node>& arg,
     , m_shape(shape)
     , m_broadcast_axes(broadcast_axes)
 {
-    auto& input = m_inputs.at(0);
+}
+
+void op::Broadcast::validate_and_infer_types()
+{
+    util::RequiresTensorViewArgs::validate_and_infer_types();
+
     Shape target_shape = m_shape;
     for (auto i = m_broadcast_axes.rbegin(); i != m_broadcast_axes.rend(); ++i)
     {
@@ -37,11 +42,11 @@ op::Broadcast::Broadcast(const shared_ptr<Node>& arg,
         }
         target_shape.erase(target_shape.begin() + *i);
     }
-    if (Shape{target_shape} != input.get_shape())
+    if (Shape{target_shape} != get_input_shape(0))
     {
         throw ngraph_error("Broadcast arg, shape, and axes are incompatible");
     }
-    set_value_type_checked(make_shared<TensorViewType>(input.get_element_type(), m_shape));
+    set_value_type_checked(make_shared<TensorViewType>(get_input_element_type(0), m_shape));
 }
 
 shared_ptr<Node> op::Broadcast::copy_with_new_args(const NodeVector& new_args) const

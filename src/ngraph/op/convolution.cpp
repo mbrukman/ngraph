@@ -248,10 +248,39 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
     , m_padding_above(padding_above)
     , m_data_dilation_strides(data_dilation_strides)
 {
-    auto& data_batch_shape = get_inputs().at(0).get_shape();
-    auto& data_batch_et = get_inputs().at(0).get_element_type();
-    auto& filters_shape = get_inputs().at(1).get_shape();
-    auto& filters_et = get_inputs().at(1).get_element_type();
+}
+
+void op::Convolution::validate_and_infer_types()
+{
+    util::RequiresTensorViewArgs::validate_and_infer_types();
+
+    auto& data_batch_shape = get_input_shape(0);
+    auto& data_batch_et = get_input_element_type(0);
+    auto& filters_shape = get_input_shape(1);
+    auto& filters_et = get_input_element_type(1);
+
+    if (m_data_dilation_strides.size() == 0)
+    {
+        m_data_dilation_strides = default_strides(data_batch_shape);
+    }
+    if (m_window_movement_strides.size() == 0)
+    {
+        m_window_movement_strides = default_strides(data_batch_shape);
+    }
+    if (m_window_dilation_strides.size() == 0)
+    {
+        m_window_dilation_strides = default_strides(data_batch_shape);
+    }
+
+    if (m_padding_below.size() == 0)
+    {
+        m_padding_below = default_padding(data_batch_shape);
+    }
+
+    if (m_padding_above.size() == 0)
+    {
+        m_padding_above = default_padding(data_batch_shape);
+    }
 
     //
     // Make sure data batch and filter element types match.
@@ -264,11 +293,11 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
     set_value_type_checked(data_batch_et,
                            util::infer_convolution_output_shape(data_batch_shape,
                                                                 filters_shape,
-                                                                window_movement_strides,
-                                                                window_dilation_strides,
-                                                                padding_below,
-                                                                padding_above,
-                                                                data_dilation_strides,
+                                                                m_window_movement_strides,
+                                                                m_window_dilation_strides,
+                                                                m_padding_below,
+                                                                m_padding_above,
+                                                                m_data_dilation_strides,
                                                                 0,
                                                                 1,
                                                                 1,
@@ -278,9 +307,8 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
                                                                 ""));
 }
 
-Strides op::Convolution::default_strides(const shared_ptr<Node>& data_batch)
+Strides op::Convolution::default_strides(const Shape& data_batch_shape)
 {
-    auto& data_batch_shape = data_batch->get_shape();
     if (data_batch_shape.size() < 3)
     {
         // For consistency we should throw the same error message here that we throw in the constructor.
@@ -303,13 +331,12 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
                   window_dilation_strides,
                   padding_below,
                   padding_above,
-                  default_strides(data_batch))
+                  Strides())
 {
 }
 
-CoordinateDiff op::Convolution::default_padding(const shared_ptr<Node>& data_batch)
+CoordinateDiff op::Convolution::default_padding(const Shape& data_batch_shape)
 {
-    auto& data_batch_shape = data_batch->get_shape();
     if (data_batch_shape.size() < 3)
     {
         // For consistency we should throw the same error message here that we throw in the constructor.
@@ -328,8 +355,8 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
                   filters,
                   window_movement_strides,
                   window_dilation_strides,
-                  default_padding(data_batch),
-                  default_padding(data_batch))
+                  CoordinateDiff(),
+                  CoordinateDiff())
 {
 }
 
@@ -339,19 +366,14 @@ op::Convolution::Convolution(const shared_ptr<Node>& data_batch,
     : Convolution(data_batch,
                   filters,
                   window_movement_strides,
-                  default_strides(data_batch),
-                  default_padding(data_batch),
-                  default_padding(data_batch))
+                  Strides(),
+                  CoordinateDiff(),
+                  CoordinateDiff())
 {
 }
 
 op::Convolution::Convolution(const shared_ptr<Node>& data_batch, const shared_ptr<Node>& filters)
-    : Convolution(data_batch,
-                  filters,
-                  default_strides(data_batch),
-                  default_strides(data_batch),
-                  default_padding(data_batch),
-                  default_padding(data_batch))
+    : Convolution(data_batch, filters, Strides(), Strides(), CoordinateDiff(), CoordinateDiff())
 {
 }
 
@@ -417,10 +439,16 @@ op::ConvolutionBackpropData::ConvolutionBackpropData(const Shape& data_batch_sha
     , m_padding_above_forward(padding_above_forward)
     , m_data_dilation_strides_forward(data_dilation_strides_forward)
 {
-    auto& filters_shape = get_inputs().at(0).get_shape();
-    auto& filters_et = get_inputs().at(0).get_element_type();
-    auto& output_delta_shape = get_inputs().at(1).get_shape();
-    auto& output_delta_et = get_inputs().at(1).get_element_type();
+}
+
+void op::ConvolutionBackpropData::validate_and_infer_types()
+{
+    util::RequiresTensorViewArgs::validate_and_infer_types();
+
+    auto& filters_shape = get_input_shape(0);
+    auto& filters_et = get_input_element_type(0);
+    auto& output_delta_shape = get_input_shape(1);
+    auto& output_delta_et = get_input_element_type(1);
 
     //
     // Make sure filter and output delta element types match.
@@ -438,22 +466,22 @@ op::ConvolutionBackpropData::ConvolutionBackpropData(const Shape& data_batch_sha
     // Padding above                b_x                   (S_f - 1)p_f + ((a_x + (S_x - 1)p_x + b_x - (S_f - 1)p_f) % q) - b_x
     // Data dilation strides        p_x                   q
 
-    for (size_t i = 0; i < data_batch_shape.size() - 2; i++)
+    for (size_t i = 0; i < m_data_batch_shape.size() - 2; i++)
     {
-        m_window_movement_strides_backward.push_back(data_dilation_strides_forward[i]);
-        m_window_dilation_strides_backward.push_back(window_dilation_strides_forward[i]);
+        m_window_movement_strides_backward.push_back(m_data_dilation_strides_forward[i]);
+        m_window_dilation_strides_backward.push_back(m_window_dilation_strides_forward[i]);
         m_padding_below_backward.push_back((filters_shape[i + 2] - 1) *
-                                               window_dilation_strides_forward[i] -
-                                           padding_below_forward[i]);
+                                               m_window_dilation_strides_forward[i] -
+                                           m_padding_below_forward[i]);
         m_padding_above_backward.push_back(
-            (filters_shape[i + 2] - 1) * window_dilation_strides_forward[i] +
-            ((padding_below_forward[i] +
-              (data_batch_shape[i + 2] - 1) * data_dilation_strides_forward[i] +
-              padding_above_forward[i] -
-              (filters_shape[i + 2] - 1) * window_dilation_strides_forward[i]) %
-             window_movement_strides_forward[i]) -
-            padding_above_forward[i]);
-        m_data_dilation_strides_backward.push_back(window_movement_strides_forward[i]);
+            (filters_shape[i + 2] - 1) * m_window_dilation_strides_forward[i] +
+            ((m_padding_below_forward[i] +
+              (m_data_batch_shape[i + 2] - 1) * m_data_dilation_strides_forward[i] +
+              m_padding_above_forward[i] -
+              (filters_shape[i + 2] - 1) * m_window_dilation_strides_forward[i]) %
+             m_window_movement_strides_forward[i]) -
+            m_padding_above_forward[i]);
+        m_data_dilation_strides_backward.push_back(m_window_movement_strides_forward[i]);
     }
 
     Shape inferred_convolution_output_shape =
@@ -474,7 +502,7 @@ op::ConvolutionBackpropData::ConvolutionBackpropData(const Shape& data_batch_sha
 
     // Not sure if this can ever actually happen (i.e., I think it will trip on something else
     // inside infer_convolution_output_shape before we get here) but it seems worth checking.
-    if (inferred_convolution_output_shape != data_batch_shape)
+    if (inferred_convolution_output_shape != m_data_batch_shape)
     {
         throw ngraph_error(
             "Convolution data batch backprop inferred output shape does not match "
@@ -589,10 +617,16 @@ op::ConvolutionBackpropFilters::ConvolutionBackpropFilters(
     , m_padding_above_forward(padding_above_forward)
     , m_data_dilation_strides_forward(data_dilation_strides_forward)
 {
-    auto& data_batch_shape = get_inputs().at(0).get_shape();
-    auto& data_batch_et = get_inputs().at(0).get_element_type();
-    auto& output_delta_shape = get_inputs().at(1).get_shape();
-    auto& output_delta_et = get_inputs().at(1).get_element_type();
+}
+
+void op::ConvolutionBackpropFilters::validate_and_infer_types()
+{
+    util::RequiresTensorViewArgs::validate_and_infer_types();
+
+    auto& data_batch_shape = get_input_shape(0);
+    auto& data_batch_et = get_input_element_type(0);
+    auto& output_delta_shape = get_input_shape(1);
+    auto& output_delta_et = get_input_element_type(1);
 
     //
     // Make sure data batch and output delta element types match.
@@ -610,19 +644,19 @@ op::ConvolutionBackpropFilters::ConvolutionBackpropFilters(
     // Padding above                b_x                   b_x - (a_x + (S_x - 1)p_x + b_x - (S_f - 1)p_f) % q
     // Data dilation strides        p_x                   p_x
 
-    for (size_t i = 0; i < filters_shape.size() - 2; i++)
+    for (size_t i = 0; i < m_filters_shape.size() - 2; i++)
     {
-        m_window_movement_strides_backward.push_back(window_dilation_strides_forward[i]);
-        m_window_dilation_strides_backward.push_back(window_movement_strides_forward[i]);
-        m_padding_below_backward.push_back(padding_below_forward[i]);
+        m_window_movement_strides_backward.push_back(m_window_dilation_strides_forward[i]);
+        m_window_dilation_strides_backward.push_back(m_window_movement_strides_forward[i]);
+        m_padding_below_backward.push_back(m_padding_below_forward[i]);
         m_padding_above_backward.push_back(
-            padding_above_forward[i] -
-            (padding_below_forward[i] +
-             (data_batch_shape[i + 2] - 1) * data_dilation_strides_forward[i] +
-             padding_above_forward[i] -
-             (filters_shape[i + 2] - 1) * window_dilation_strides_forward[i]) %
-                window_movement_strides_forward[i]);
-        m_data_dilation_strides_backward.push_back(data_dilation_strides_forward[i]);
+            m_padding_above_forward[i] -
+            (m_padding_below_forward[i] +
+             (data_batch_shape[i + 2] - 1) * m_data_dilation_strides_forward[i] +
+             m_padding_above_forward[i] -
+             (m_filters_shape[i + 2] - 1) * m_window_dilation_strides_forward[i]) %
+                m_window_movement_strides_forward[i]);
+        m_data_dilation_strides_backward.push_back(m_data_dilation_strides_forward[i]);
     }
 
     Shape inferred_convolution_output_shape =
@@ -643,7 +677,7 @@ op::ConvolutionBackpropFilters::ConvolutionBackpropFilters(
 
     // Not sure if this can ever actually happen (i.e., I think it will trip on something else
     // inside infer_convolution_output_shape before we get here) but it seems worth checking.
-    if (inferred_convolution_output_shape != filters_shape)
+    if (inferred_convolution_output_shape != m_filters_shape)
     {
         throw ngraph_error(
             "Convolution filter backprop inferred output shape does not match "

@@ -86,6 +86,8 @@ namespace ngraph
 
         virtual void generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas) {}
     public:
+        /// Throws if the node is invalid.
+        virtual void validate_and_infer_types();
         /// The class name, must not contain spaces
         std::string description() const { return m_node_type; }
         const std::string& get_friendly_name() const;
@@ -106,6 +108,8 @@ namespace ngraph
         // independently compute what we thing the value type should be from the arguments.
         void set_value_type_checked(const std::shared_ptr<const TensorViewType>& value_type);
         void set_value_type_checked(const element::Type& element_type, const Shape& shape);
+
+        void set_output_type(size_t i, const element::Type& element_type, const Shape& shape);
 
         bool is_parameter() const;
         virtual bool is_output() const;
@@ -194,6 +198,9 @@ namespace ngraph
         NodeVector get_users() const;
 
         virtual std::shared_ptr<Node> get_default_value() const { return nullptr; }
+        /// Throws if any inputs return more than one output
+        void requires_single_output_args() const;
+
     protected:
         void add_output(const element::Type& element_type, const Shape& shape);
 

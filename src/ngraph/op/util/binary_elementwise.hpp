@@ -54,6 +54,8 @@ namespace ngraph
                                   const element::Type& result_element_type,
                                   const std::shared_ptr<Node>& arg0,
                                   const std::shared_ptr<Node>& arg1);
+
+                void validate_and_infer_types() override;
             };
         }
     }

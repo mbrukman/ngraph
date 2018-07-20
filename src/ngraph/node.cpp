@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "ngraph/node.hpp"
 #include <memory>
 #include <sstream>
 #include <typeindex>
@@ -23,6 +22,7 @@
 #include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/descriptor/layout/tensor_view_layout.hpp"
 #include "ngraph/descriptor/primary_tensor_view.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/placement.hpp"
@@ -48,25 +48,38 @@ Node::Node(const std::string& node_type, const NodeVector& arguments)
     }
 }
 
+void Node::validate_and_infer_types()
+{
+}
+
+void Node::set_output_type(size_t i, const element::Type& element_type, const Shape& shape)
+{
+    if (m_outputs.size() == i)
+    {
+        shared_ptr<TensorViewType> tensor_view_type =
+            make_shared<TensorViewType>(element_type, shape);
+        auto tensor_view_descriptor = make_shared<descriptor::PrimaryTensorView>(
+            tensor_view_type, ngraph::descriptor::Tensor::make_tensor_name(this, i));
+        m_outputs.emplace_back(this, i, tensor_view_descriptor);
+    }
+    else if (m_outputs.size() > i)
+    {
+        m_outputs.at(i).get_tensor_view()->set_tensor_view_type(element_type, shape);
+    }
+    else
+    {
+        throw ngraph_error("set_output_type can only extend the outputs by one");
+    }
+}
+
 void Node::set_value_type_checked(const element::Type& element_type, const Shape& shape)
 {
-    if (m_outputs.size() == 0)
-    {
-        add_output(element_type, shape);
-    }
-    if (element_type != get_element_type() || shape != get_shape())
-    {
-        throw ngraph_error("Setting value type to a different ValueType");
-    }
+    set_output_type(0, element_type, shape);
 }
 
 void Node::add_output(const element::Type& element_type, const Shape& shape)
 {
-    shared_ptr<TensorViewType> tensor_view_type = make_shared<TensorViewType>(element_type, shape);
-    size_t i = m_outputs.size();
-    auto tensor_view_descriptor = make_shared<descriptor::PrimaryTensorView>(
-        tensor_view_type, ngraph::descriptor::Tensor::make_tensor_name(this, i));
-    m_outputs.emplace_back(this, i, tensor_view_descriptor);
+    set_output_type(m_outputs.size(), element_type, shape);
 }
 
 void Node::set_value_type_checked(const shared_ptr<const TensorViewType>& value_type)
@@ -217,7 +230,10 @@ const Shape& Node::get_shape() const
 {
     if (get_output_size() != 1)
     {
-        throw ngraph_error("get_shape() must be called on a node with exactly one output.");
+        stringstream es;
+        es << "get_shape() must be called on a node with exactly one output (" << description()
+           << ")";
+        throw ngraph_error(es);
     }
     return get_output_shape(0);
 }
@@ -333,4 +349,16 @@ std::string ngraph::type_check_assert_string(const Node* node)
     ss << "While type-checking node '" << node->get_name() << "' of type '" << node->description()
        << "'";
     return ss.str();
+}
+
+void Node::requires_single_output_args() const
+{
+    for (auto& i : get_inputs())
+    {
+        if (i.get_output().get_node()->get_output_size() != 1)
+        {
+            throw ngraph_error("Arguments for node type \"" + m_node_type +
+                               "\" must be tensor views");
+        }
+    }
 }

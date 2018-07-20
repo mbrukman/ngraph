@@ -75,12 +75,13 @@ autodiff::Adjoints::Adjoints(const NodeVector& ys, const NodeVector& cs)
                 "Adjoints for multi-output ops aren't supported directly.\nProvide deltas for "
                 "corresponding GetOutputElements instead");
         }
-
+#if 0
         if (ys.at(i)->get_shape() != cs.at(i)->get_shape() ||
             ys.at(i)->get_element_type() != cs.at(i)->get_element_type())
         {
             throw ngraph_error("delta and node shape or element type must match");
         }
+#endif
     }
 
     // Pass 1 determines which nodes contribute to y as well as setting up a reverse
@@ -161,11 +162,13 @@ void autodiff::Adjoints::add_delta(const std::shared_ptr<Node>& x,
                                    const std::shared_ptr<Node>& delta,
                                    size_t output_index)
 {
+#if 0
     if (x->get_outputs().at(output_index).get_element_type() != delta->get_element_type() ||
         x->get_outputs().at(output_index).get_shape() != delta->get_shape())
     {
         throw ngraph_error("Autodiff internal error: Mismatch on backprop and op in add_delta.");
     }
+#endif
     auto adjoint_it = m_adjoint_map.find(x.get());
     if (m_adjoint_map.end() == adjoint_it)
     {
