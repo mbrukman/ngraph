@@ -360,12 +360,7 @@ private:
         }
         case OP_TYPEID::FunctionCall_TYPEID:
         {
-            auto caller = bind(&ngraph::runtime::interpreter::INTBackend::call,
-                               this,
-                               std::placeholders::_1,
-                               std::placeholders::_2,
-                               std::placeholders::_3);
-            dynamic_cast<FunctionCallExec*>(&node)->execute<T>(out, args, caller);
+            dynamic_cast<FunctionCallExec*>(&node)->execute<T>(out, args, this);
             break;
         }
         case OP_TYPEID::GetOutputElement_TYPEID:

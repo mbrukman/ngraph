@@ -22,6 +22,7 @@
 #include "ngraph/op/function_call.hpp"
 #include "ngraph/runtime/host_tensor_view.hpp"
 #include "ngraph/runtime/interpreter/exec_node.hpp"
+#include "ngraph/runtime/backend.hpp"
 
 namespace ngraph
 {
@@ -58,7 +59,7 @@ public:
     template <typename T>
     void execute(const std::vector<std::shared_ptr<HostTensorView>>& out,
                  const std::vector<std::shared_ptr<HostTensorView>>& args,
-                 call_t backend)
+                 ngraph::runtime::Backend* backend)
     {
         std::shared_ptr<Function> function = m_node->get_functions()[0];
 
@@ -74,7 +75,7 @@ public:
             inputs.push_back(std::static_pointer_cast<runtime::TensorView>(tv));
         }
 
-        backend(function, outputs, inputs);
+        backend->call(function, outputs, inputs);
     }
 
     OP_TYPEID get_typeid() const override { return OP_TYPEID::FunctionCall_TYPEID; }
