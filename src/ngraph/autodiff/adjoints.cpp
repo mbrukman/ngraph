@@ -28,6 +28,7 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
+#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/strides.hpp"
@@ -35,27 +36,27 @@
 
 using namespace ngraph;
 
-std::shared_ptr<Node> make_zero(const element::Type& element_type, const Shape& shape)
+std::shared_ptr<Node> make_zero(const std::shared_ptr<Node>& node)
 {
-    std::shared_ptr<Node> zero = op::Constant::create(element_type, Shape{}, {0.0});
-    if (shape.size() > 0)
-    {
-        AxisSet axes;
-        for (size_t i = 0; i < shape.size(); i++)
-        {
-            axes.insert(i);
-        }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
-    }
-    return zero;
+    std::shared_ptr<Node> zero = std::make_shared<op::ScalarConstantLike<double>>(node, 0.0);
+    std::shared_ptr<Node> bzero = std::make_shared<op::BroadcastLike>(node, zero, AxisSet{});
+    return bzero;
 }
 
 NodeVector make_zeros(std::shared_ptr<Node> x)
 {
     NodeVector zeros;
-    for (auto& output : x->get_outputs())
+    auto& outputs = x->get_outputs();
+    if (1 == outputs.size())
     {
-        zeros.push_back(make_zero(output.get_element_type(), output.get_shape()));
+        zeros.push_back(make_zero(x));
+    }
+    else
+    {
+        for (size_t i = 0; i < outputs.size(); ++i)
+        {
+            zeros.push_back(make_zero(std::make_shared<op::GetOutputElement>(x, i)));
+        }
     }
     return zeros;
 }
@@ -201,8 +202,7 @@ void autodiff::Adjoints::add_delta_to_slice(const std::shared_ptr<Node>& x,
     auto adjoint_it = m_adjoint_map.find(x.get());
     if (m_adjoint_map.end() == adjoint_it)
     {
-        auto& output = x->get_outputs().at(0);
-        auto zero = make_zero(output.get_element_type(), output.get_shape());
+        auto zero = make_zero(x);
         NodeVector zeros{
             std::make_shared<op::ReplaceSlice>(zero, delta, lower_bounds, upper_bounds, strides)};
         m_adjoint_map.insert({x.get(), zeros});

@@ -46,8 +46,6 @@ namespace ngraph
                 , m_data(ngraph::aligned_alloc(m_element_type.size(),
                                                shape_size(m_shape) * m_element_type.size()))
             {
-                auto vt = std::make_shared<TensorViewType>(type, shape);
-                set_value_type_checked(vt);
                 if (values.size() == 1)
                 {
                     write_values(std::vector<T>(shape_size(m_shape), values[0]));
@@ -60,6 +58,12 @@ namespace ngraph
                 {
                     throw ngraph_error("Constant does not have the expected number of literals");
                 }
+            }
+
+            Constant(const std::string& name, const NodeVector& args)
+                : Node(name, args)
+                , m_shape({})
+            {
             }
 
             /// \brief Constructs a tensor constant
@@ -75,8 +79,6 @@ namespace ngraph
                 , m_data(ngraph::aligned_alloc(m_element_type.size(),
                                                shape_size(m_shape) * m_element_type.size()))
             {
-                auto vt = std::make_shared<TensorViewType>(type, shape);
-                set_value_type_checked(vt);
                 if (values.size() != shape_size(m_shape))
                 {
                     throw ngraph_error("Constant does not have the expected number of literals");
@@ -100,11 +102,16 @@ namespace ngraph
                 size_t size = shape_size(m_shape) * m_element_type.size();
                 m_data = ngraph::aligned_alloc(m_element_type.size(), size);
                 memcpy(m_data, data, size);
-                auto vt = std::make_shared<TensorViewType>(type, shape);
-                set_value_type_checked(vt);
             }
 
             virtual ~Constant() override;
+
+            void validate_and_infer_types() override
+            {
+                Node::validate_and_infer_types();
+                infer_element_type();
+                set_output_type(0, m_element_type, m_shape);
+            }
 
             /// \brief Wrapper around constructing a shared_ptr of a Constant
             ///
@@ -162,6 +169,7 @@ namespace ngraph
 
             bool is_constant() const override { return true; }
         protected:
+            virtual void infer_element_type() {}
             template <typename T>
             void write_values(const std::vector<T>& values)
             {
@@ -240,8 +248,33 @@ namespace ngraph
             }
 
             element::Type m_element_type;
-            Shape m_shape;
-            void* m_data;
+            Shape m_shape{};
+            void* m_data{nullptr};
+        };
+
+        template <typename T>
+        class ScalarConstantLike : public Constant
+        {
+        public:
+            ScalarConstantLike(const std::shared_ptr<Node>& like, T value)
+                : Constant("ScalarConstantLike", {like})
+                , m_value(value)
+            {
+            }
+
+            void validate_and_infer_types() override { Constant::validate_and_infer_types(); }
+        protected:
+            void infer_element_type() override
+            {
+                m_element_type = get_input_element_type(0);
+                if (nullptr == m_data)
+                {
+                    m_data = ngraph::aligned_alloc(m_element_type.size(), m_element_type.size());
+                    write_values(std::vector<T>(1, m_value));
+                }
+            }
+
+            T m_value;
         };
     }
 }

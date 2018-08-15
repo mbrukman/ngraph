@@ -20,12 +20,20 @@
 using namespace std;
 using namespace ngraph;
 
+op::Broadcast::Broadcast(const std::string& name,
+                         const NodeVector& args,
+                         const Shape& shape,
+                         const AxisSet& broadcast_axes)
+    : RequiresTensorViewArgs(name, args)
+    , m_shape(shape)
+    , m_broadcast_axes(broadcast_axes)
+{
+}
+
 op::Broadcast::Broadcast(const shared_ptr<Node>& arg,
                          const Shape& shape,
                          const AxisSet& broadcast_axes)
-    : RequiresTensorViewArgs("Broadcast", {arg})
-    , m_shape(shape)
-    , m_broadcast_axes(broadcast_axes)
+    : Broadcast("Broadcast", {arg}, shape, broadcast_axes)
 {
 }
 
@@ -33,6 +41,7 @@ void op::Broadcast::validate_and_infer_types()
 {
     util::RequiresTensorViewArgs::validate_and_infer_types();
 
+    infer_shape();
     Shape target_shape = m_shape;
     for (auto i = m_broadcast_axes.rbegin(); i != m_broadcast_axes.rend(); ++i)
     {
@@ -46,7 +55,7 @@ void op::Broadcast::validate_and_infer_types()
     {
         throw ngraph_error("Broadcast arg, shape, and axes are incompatible");
     }
-    set_value_type_checked(make_shared<TensorViewType>(get_input_element_type(0), m_shape));
+    set_output_type(0, get_input_element_type(0), m_shape);
 }
 
 shared_ptr<Node> op::Broadcast::copy_with_new_args(const NodeVector& new_args) const
@@ -65,4 +74,33 @@ void op::Broadcast::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVe
     auto x = get_argument(0);
 
     adjoints.add_delta(x, make_shared<op::Sum>(delta, m_broadcast_axes));
+}
+
+op::BroadcastLike::BroadcastLike(const std::shared_ptr<Node>& arg,
+                                 const std::shared_ptr<Node>& like_arg,
+                                 const AxisSet& broadcast_axes)
+    : Broadcast("BroadcastLike", {arg, like_arg}, {}, broadcast_axes)
+{
+}
+
+shared_ptr<Node> op::BroadcastLike::copy_with_new_args(const NodeVector& new_args) const
+{
+    if (new_args.size() != 2)
+    {
+        throw ngraph_error("Incorrect number of new arguments");
+    }
+    return make_shared<BroadcastLike>(new_args.at(0), new_args.at(1), m_broadcast_axes);
+}
+
+void op::BroadcastLike::infer_shape()
+{
+    const Shape& in_shape = get_input_shape(0);
+    m_shape = get_input_shape(1);
+    if (m_broadcast_axes.size() == 0)
+    {
+        for (size_t i = in_shape.size(); i < m_shape.size(); ++i)
+        {
+            m_broadcast_axes.insert(i);
+        }
+    }
 }

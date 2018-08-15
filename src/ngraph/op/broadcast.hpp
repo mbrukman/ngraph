@@ -46,11 +46,30 @@ namespace ngraph
             const AxisSet& get_broadcast_axes() const { return m_broadcast_axes; }
             const Shape& get_broadcast_shape() const { return m_shape; }
         protected:
+            Broadcast(const std::string& node_type,
+                      const NodeVector& args,
+                      const Shape& shape,
+                      const AxisSet& broadcast_axes);
+
             virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                            const NodeVector& deltas) override;
 
+            virtual void infer_shape() {}
             Shape m_shape;
             AxisSet m_broadcast_axes;
+        };
+
+        class BroadcastLike : public Broadcast
+        {
+        public:
+            BroadcastLike(const std::shared_ptr<Node>& arg,
+                          const std::shared_ptr<Node>& like_arg,
+                          const AxisSet& broadcast_axes);
+
+            virtual std::shared_ptr<Node>
+                copy_with_new_args(const NodeVector& new_args) const override;
+
+            void infer_shape() override;
         };
     }
 }
