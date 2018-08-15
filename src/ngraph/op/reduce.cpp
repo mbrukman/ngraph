@@ -91,7 +91,7 @@ op::Reduce::Reduce(const shared_ptr<Node>& arg_reductee,
         throw ngraph_error("Return shape from reduction function is not a scalar");
     }
 
-    add_output(input_reductee.get_element_type(), result_shape);
+    set_output_type(0, input_reductee.get_element_type(), result_shape);
 }
 
 shared_ptr<Node> op::Reduce::copy_with_new_args(const NodeVector& new_args) const

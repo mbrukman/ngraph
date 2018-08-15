@@ -215,7 +215,7 @@ op::SelectAndScatter::SelectAndScatter(const shared_ptr<Node>& arg_selectee,
     //
     // Result type is the same element type and shape as the selectee.
     //
-    set_value_type_checked(input_selectee_element_type, input_selectee_shape);
+    set_output_type(0, input_selectee_element_type, input_selectee_shape);
 }
 
 shared_ptr<Node> op::SelectAndScatter::copy_with_new_args(const NodeVector& new_args) const

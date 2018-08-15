@@ -21,6 +21,7 @@
 
 using namespace ngraph;
 
+const element::Type element::unspecified(0, false, false, "unspecified");
 const element::Type element::boolean(8, false, true, "char");
 const element::Type element::f32(32, true, true, "float");
 const element::Type element::f64(64, true, true, "double");

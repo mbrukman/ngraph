@@ -68,7 +68,7 @@ op::Pad::Pad(const shared_ptr<Node>& arg,
             padding_above[i]);
     }
 
-    set_value_type_checked(get_input_element_type(0), result_shape);
+    set_output_type(0, get_input_element_type(0), result_shape);
 }
 
 shared_ptr<Node> op::Pad::copy_with_new_args(const NodeVector& new_args) const

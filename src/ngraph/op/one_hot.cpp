@@ -41,7 +41,7 @@ op::OneHot::OneHot(const shared_ptr<Node>& arg, const Shape& shape, size_t one_h
         throw ngraph_error("One-hot argument shape is not compatible with desired output shape");
     }
 
-    set_value_type_checked(make_shared<TensorViewType>(input_element_type, shape));
+    set_output_type(0, input_element_type, shape);
 }
 
 shared_ptr<Node> op::OneHot::copy_with_new_args(const NodeVector& new_args) const

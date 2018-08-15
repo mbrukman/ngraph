@@ -128,7 +128,7 @@ op::ReduceWindow::ReduceWindow(const shared_ptr<Node>& arg_reductee,
             ceil_div(input_reductee_shape[i] - window_shape[i] + 1, window_movement_strides[i]));
     }
 
-    set_value_type_checked(input_reductee.get_element_type(), result_shape);
+    set_output_type(0, input_reductee.get_element_type(), result_shape);
 }
 
 shared_ptr<Node> op::ReduceWindow::copy_with_new_args(const NodeVector& new_args) const

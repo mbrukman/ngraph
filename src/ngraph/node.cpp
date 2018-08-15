@@ -32,7 +32,7 @@ using namespace ngraph;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
-Node::Node(const std::string& node_type, const NodeVector& arguments)
+Node::Node(const std::string& node_type, const NodeVector& arguments, size_t output_size)
     : m_node_type(node_type)
     , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_unique_name(description() + "_" + to_string(m_instance_id))
@@ -46,6 +46,20 @@ Node::Node(const std::string& node_type, const NodeVector& arguments)
             m_inputs.emplace_back(this, i++, output);
         }
     }
+    set_output_size(output_size);
+}
+
+void Node::set_output_size(size_t n)
+{
+    m_outputs.clear();
+    for (size_t i = m_outputs.size(); i < n; ++i)
+    {
+        shared_ptr<TensorViewType> tensor_view_type =
+            make_shared<TensorViewType>(element::unspecified, Shape());
+        auto tensor_view_descriptor = make_shared<descriptor::PrimaryTensorView>(
+            tensor_view_type, ngraph::descriptor::Tensor::make_tensor_name(this, i));
+        m_outputs.emplace_back(this, i, tensor_view_descriptor);
+    }
 }
 
 void Node::validate_and_infer_types()
@@ -54,37 +68,7 @@ void Node::validate_and_infer_types()
 
 void Node::set_output_type(size_t i, const element::Type& element_type, const Shape& shape)
 {
-    if (m_outputs.size() == i)
-    {
-        shared_ptr<TensorViewType> tensor_view_type =
-            make_shared<TensorViewType>(element_type, shape);
-        auto tensor_view_descriptor = make_shared<descriptor::PrimaryTensorView>(
-            tensor_view_type, ngraph::descriptor::Tensor::make_tensor_name(this, i));
-        m_outputs.emplace_back(this, i, tensor_view_descriptor);
-    }
-    else if (m_outputs.size() > i)
-    {
-        m_outputs.at(i).get_tensor_view()->set_tensor_view_type(element_type, shape);
-    }
-    else
-    {
-        throw ngraph_error("set_output_type can only extend the outputs by one");
-    }
-}
-
-void Node::set_value_type_checked(const element::Type& element_type, const Shape& shape)
-{
-    set_output_type(0, element_type, shape);
-}
-
-void Node::add_output(const element::Type& element_type, const Shape& shape)
-{
-    set_output_type(m_outputs.size(), element_type, shape);
-}
-
-void Node::set_value_type_checked(const shared_ptr<const TensorViewType>& value_type)
-{
-    set_value_type_checked(value_type->get_element_type(), value_type->get_shape());
+    m_outputs.at(i).get_tensor_view()->set_tensor_view_type(element_type, shape);
 }
 
 std::deque<descriptor::Output>& Node::get_outputs()

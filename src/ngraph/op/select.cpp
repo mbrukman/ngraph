@@ -48,7 +48,7 @@ op::Select::Select(const shared_ptr<Node>& arg0,
         throw ngraph_error("Arguments 1 and 2 must have the same element type");
     }
 
-    set_value_type_checked(input_1.get_element_type(), input_1.get_shape());
+    set_output_type(0, input_1.get_element_type(), input_1.get_shape());
 }
 
 shared_ptr<Node> op::Select::copy_with_new_args(const NodeVector& new_args) const

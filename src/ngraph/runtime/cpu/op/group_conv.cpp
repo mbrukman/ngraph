@@ -53,7 +53,7 @@ op::GroupConvolution::GroupConvolution(const shared_ptr<Node>& data_batch,
         throw ngraph_error("Convolution data batch and filter element types do not match");
     }
 
-    set_value_type_checked(data_batch_et, output_shape);
+    set_output_type(0, data_batch_et, output_shape);
 }
 
 Shape op::GroupConvolution::get_weights_dimensions() const

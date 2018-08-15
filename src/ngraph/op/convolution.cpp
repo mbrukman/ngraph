@@ -290,21 +290,22 @@ void op::Convolution::validate_and_infer_types()
         throw ngraph_error("Convolution data batch and filter element types do not match");
     }
 
-    set_value_type_checked(data_batch_et,
-                           util::infer_convolution_output_shape(data_batch_shape,
-                                                                filters_shape,
-                                                                m_window_movement_strides,
-                                                                m_window_dilation_strides,
-                                                                m_padding_below,
-                                                                m_padding_above,
-                                                                m_data_dilation_strides,
-                                                                0,
-                                                                1,
-                                                                1,
-                                                                0,
-                                                                0,
-                                                                1,
-                                                                ""));
+    set_output_type(0,
+                    data_batch_et,
+                    util::infer_convolution_output_shape(data_batch_shape,
+                                                         filters_shape,
+                                                         m_window_movement_strides,
+                                                         m_window_dilation_strides,
+                                                         m_padding_below,
+                                                         m_padding_above,
+                                                         m_data_dilation_strides,
+                                                         0,
+                                                         1,
+                                                         1,
+                                                         0,
+                                                         0,
+                                                         1,
+                                                         ""));
 }
 
 Strides op::Convolution::default_strides(const Shape& data_batch_shape)
@@ -509,7 +510,7 @@ void op::ConvolutionBackpropData::validate_and_infer_types()
             "specified data batch shape");
     }
 
-    set_value_type_checked(filters_et, inferred_convolution_output_shape);
+    set_output_type(0, filters_et, inferred_convolution_output_shape);
 }
 
 void op::ConvolutionBackpropData::generate_adjoints(autodiff::Adjoints& adjoints,
@@ -684,7 +685,7 @@ void op::ConvolutionBackpropFilters::validate_and_infer_types()
             "specified filter shape");
     }
 
-    set_value_type_checked(data_batch_et, inferred_convolution_output_shape);
+    set_output_type(0, data_batch_et, inferred_convolution_output_shape);
 }
 
 shared_ptr<Node>

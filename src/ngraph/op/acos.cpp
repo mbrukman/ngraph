@@ -52,7 +52,7 @@ void op::Acos::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector&
 
     auto x = get_inputs().at(0).get_output().get_node();
 
-    auto one = make_shared<op::Constant>(x->get_element_type(), Shape{}, vector<string>{"1"});
+    auto one = make_shared<op::ScalarConstantLike<double>>(x, 1.0);
 
     AxisSet axes;
     for (size_t i = 0; i < x->get_shape().size(); i++)

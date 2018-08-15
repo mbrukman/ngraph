@@ -76,12 +76,14 @@ ngraph::runtime::cpu::op::LoopKernel::LoopKernel(const NodeVector& node_list,
         }
     }
 
-    for (auto o : outputs)
+    for (size_t i = 0; i < outputs.size(); ++i)
     {
+        auto& o = outputs.at(i);
+
         if (std::find(node_list.begin(), node_list.end(), o) == node_list.end())
         {
             throw ngraph_error(o->get_name() + " isn't in node_list");
         }
-        add_output(o->get_element_type(), o->get_shape());
+        set_output_type(i, o->get_element_type(), o->get_shape());
     }
 }

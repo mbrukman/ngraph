@@ -114,7 +114,7 @@ void op::ReplaceSlice::check_args()
         throw ngraph_error("Shape of replacement tensor does not match slice shape");
     }
 
-    set_value_type_checked(input_0_element_type, input_0_shape);
+    set_output_type(0, input_0_element_type, input_0_shape);
 }
 
 shared_ptr<Node> op::ReplaceSlice::copy_with_new_args(const NodeVector& new_args) const

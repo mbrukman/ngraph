@@ -33,6 +33,7 @@ namespace ngraph
     {
         class Type;
 
+        extern const Type unspecified;
         extern const Type boolean;
         extern const Type f32;
         extern const Type f64;
@@ -71,7 +72,7 @@ namespace ngraph
             size_t m_bitwidth{0};
             bool m_is_real{false};
             bool m_is_signed{false};
-            std::string m_cname{"void"};
+            std::string m_cname{"unspecified"};
         };
 
         template <typename T>
