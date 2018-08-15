@@ -122,7 +122,9 @@ namespace ngraph
             static std::shared_ptr<op::Constant>
                 create(const element::Type& type, Shape shape, const std::vector<T> values)
             {
-                return std::make_shared<op::Constant>(type, shape, values);
+                auto result = std::make_shared<op::Constant>(type, shape, values);
+                result->validate_and_infer_types();
+                return result;
             }
 
             /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -134,7 +136,9 @@ namespace ngraph
             static std::shared_ptr<op::Constant>
                 create(const element::Type& type, Shape shape, std::initializer_list<T> values)
             {
-                return std::make_shared<op::Constant>(type, shape, std::vector<T>{values});
+                auto result = std::make_shared<op::Constant>(type, shape, std::vector<T>{values});
+                result->validate_and_infer_types();
+                return result;
             }
 
             virtual std::shared_ptr<Node>
@@ -262,7 +266,6 @@ namespace ngraph
             {
             }
 
-            void validate_and_infer_types() override { Constant::validate_and_infer_types(); }
         protected:
             void infer_element_type() override
             {
