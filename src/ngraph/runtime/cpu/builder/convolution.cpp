@@ -40,16 +40,6 @@ namespace ngraph
             {
                 auto convolution = static_cast<const ngraph::op::Convolution*>(node);
 
-#ifdef NGRAPH_USE_TVM
-                if (args[0].get_shape().size() == 4)
-                {
-                    if (CHECK_BUILD_TVM_FUNCTOR)
-                    {
-                        return;
-                    }
-                }
-#endif
-
                 auto& functors = external_function->get_functors();
                 auto& tensor_data = external_function->get_tensor_data();
 
@@ -88,6 +78,19 @@ namespace ngraph
                     auto padding_below = convolution->get_padding_below();
                     auto padding_above = convolution->get_padding_above();
                     auto data_dilation_strides = convolution->get_data_dilation_strides();
+
+#ifdef NGRAPH_USE_TVM
+                    // symmetric padding and no dilation
+                    if (arg0_shape.size() == 4 && padding_below == padding_above &&
+                        window_dilation_strides == Strides{1, 1} &&
+                        data_dilation_strides == Strides{1, 1})
+                    {
+                        if (CHECK_BUILD_TVM_FUNCTOR)
+                        {
+                            return;
+                        }
+                    }
+#endif
 
                     auto functor = [&,
                                     kernel,
