@@ -60,12 +60,6 @@ namespace ngraph
                 }
             }
 
-            Constant(const std::string& name, const NodeVector& args)
-                : Node(name, args)
-                , m_shape({})
-            {
-            }
-
             /// \brief Constructs a tensor constant
             ///        This constructor is mainly to support deserialization of constants.
             ///
@@ -173,6 +167,12 @@ namespace ngraph
 
             bool is_constant() const override { return true; }
         protected:
+            Constant(const std::string& name, const NodeVector& args)
+                : Node(name, args)
+                , m_shape({})
+            {
+            }
+
             virtual void infer_element_type() {}
             template <typename T>
             void write_values(const std::vector<T>& values)
@@ -256,14 +256,31 @@ namespace ngraph
             void* m_data{nullptr};
         };
 
+        class ScalarConstantLikeBase : public Constant
+        {
+        public:
+            std::shared_ptr<op::Constant> as_constant() const;
+
+        protected:
+            ScalarConstantLikeBase(const std::string& name, const NodeVector& args)
+                : Constant(name, args)
+            {
+            }
+        };
+
         template <typename T>
-        class ScalarConstantLike : public Constant
+        class ScalarConstantLike : public ScalarConstantLikeBase
         {
         public:
             ScalarConstantLike(const std::shared_ptr<Node>& like, T value)
-                : Constant("ScalarConstantLike", {like})
+                : ScalarConstantLikeBase("ScalarConstantLike", {like})
                 , m_value(value)
             {
+            }
+
+            std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override
+            {
+                return std::make_shared<ScalarConstantLike<T>>(new_args.at(0), m_value);
             }
 
         protected:

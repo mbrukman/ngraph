@@ -94,13 +94,16 @@ shared_ptr<Node> op::BroadcastLike::copy_with_new_args(const NodeVector& new_arg
 
 void op::BroadcastLike::infer_shape()
 {
-    const Shape& in_shape = get_input_shape(0);
-    m_shape = get_input_shape(1);
-    if (m_broadcast_axes.size() == 0)
+    if (get_input_size() == 2)
     {
-        for (size_t i = in_shape.size(); i < m_shape.size(); ++i)
+        const Shape& in_shape = get_input_shape(0);
+        m_shape = get_input_shape(1);
+        if (m_broadcast_axes.size() == 0)
         {
-            m_broadcast_axes.insert(i);
+            for (size_t i = in_shape.size(); i < m_shape.size(); ++i)
+            {
+                m_broadcast_axes.insert(i);
+            }
         }
     }
 }
